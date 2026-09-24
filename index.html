@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <!-- Теги для отключения интерфейса браузера на iOS -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Kaspi">
+  <link rel="manifest" href="manifest.json">
+
+  <title>Kaspi App</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #000;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    .app-container {
+      position: relative;
+      width: 100%;
+      height: 100vh;
+      max-width: 430px; /* Адаптировано под iOS */
+      margin: 0 auto;
+      background: #fff;
+      overflow: hidden;
+    }
+
+    /* Экраны изоляции */
+    .screen {
+      display: none;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .screen.active {
+      display: block;
+    }
+
+    .screen img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      pointer-events: none; /* Пропускает клики на кнопки поверх */
+    }
+
+    /* Прозрачные кнопки поверх картинок */
+    .btn-invisible {
+      position: absolute;
+      background: rgba(0, 0, 0, 0);
+      border: none;
+      outline: none;
+      cursor: pointer;
+      z-index: 10;
+    }
+
+    /* --- Скрины и точные координаты кнопок --- */
+
+    /* Экран 1: ПИН-код (Клавиатура 0-9) */
+    .pin-pad {
+      position: absolute;
+      top: 41%;
+      left: 10%;
+      width: 80%;
+      height: 45%;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(4, 1fr);
+    }
+
+    .pin-btn {
+      background: transparent;
+      border: none;
+    }
+
+    /* Экран 2: Главная -> Кнопка "Переводы" */
+    #btn-transfers {
+      top: 31%;
+      left: 74%;
+      width: 20%;
+      height: 7.5%;
+    }
+
+    /* Экран 3: Меню -> Вкладка "История" */
+    #btn-history-tab {
+      top: 7.2%;
+      left: 51%;
+      width: 44%;
+      height: 4.8%;
+    }
+
+    /* Экран 4: Список историй -> Скрытые поля выбора файла */
+    .history-items {
+      position: absolute;
+      top: 27%;
+      left: 0;
+      width: 100%;
+      height: 65%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .history-item {
+      width: 100%;
+      height: 72px; /* Высота одной строки перевода */
+      background: transparent;
+      border: none;
+      cursor: pointer;
+    }
+
+    /* Скрытый инпут для файлов */
+    #file-picker {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-container">
+
+    <!-- 1 Скрин: ПИН -->
+    <div id="screen-1" class="screen active">
+      <img src="IMG_9384.jpeg" alt="Screen 1">
+      <div class="pin-pad">
+        <button class="pin-btn" onclick="pressKey('1')"></button>
+        <button class="pin-btn" onclick="pressKey('2')"></button>
+        <button class="pin-btn" onclick="pressKey('3')"></button>
+        <button class="pin-btn" onclick="pressKey('4')"></button>
+        <button class="pin-btn" onclick="pressKey('5')"></button>
+        <button class="pin-btn" onclick="pressKey('6')"></button>
+        <button class="pin-btn" onclick="pressKey('7')"></button>
+        <button class="pin-btn" onclick="pressKey('8')"></button>
+        <button class="pin-btn" onclick="pressKey('9')"></button>
+        <div></div>
+        <button class="pin-btn" onclick="pressKey('0')"></button>
+        <div></div>
+      </div>
+    </div>
+
+    <!-- 2 Скрин: Главная -->
+    <div id="screen-2" class="screen">
+      <img src="93506373-9AB9-4C57-A44F-3AD35A21A289.jpeg" alt="Screen 2">
+      <button id="btn-transfers" class="btn-invisible" onclick="switchScreen(3)"></button>
+    </div>
+
+    <!-- 3 Скрин: Меню переводов -->
+    <div id="screen-3" class="screen">
+      <img src="IMG_9393.jpeg" alt="Screen 3">
+      <button id="btn-history-tab" class="btn-invisible" onclick="switchScreen(4)"></button>
+    </div>
+
+    <!-- 4 Скрин: История переводов -->
+    <div id="screen-4" class="screen">
+      <img src="af850981-0e47-460a-9da4-5834cf78a981.jpeg" alt="Screen 4">
+      <div class="history-items">
+        <button class="history-item" onclick="onTransactionClick(1)"></button>
+        <button class="history-item" onclick="onTransactionClick(2)"></button>
+        <button class="history-item" onclick="onTransactionClick(3)"></button>
+        <button class="history-item" onclick="onTransactionClick(4)"></button>
+        <button class="history-item" onclick="onTransactionClick(5)"></button>
+      </div>
+    </div>
+
+  </div>
+
+  <input type="file" id="file-picker" accept="image/*,application/pdf" onchange="fileSelected(event)">
+
+  <script>
+    let enteredCode = "";
+    const correctCode = "8514";
+    const uploadedFiles = {};
+    let activeTxId = null;
+
+    // Ввод кода без всплывающих подсказок и ошибок
+    function pressKey(num) {
+      if (enteredCode.length < 4) {
+        enteredCode += num;
+      }
+      if (enteredCode.length === 4) {
+        if (enteredCode === correctCode) {
+          switchScreen(2);
+        }
+        enteredCode = ""; // Сброс при ошибке без уведомлений
+      }
+    }
+
+    // Переключение экранов
+    function switchScreen(id) {
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.getElementById(`screen-${id}`).classList.add('active');
+    }
+
+    // Клик по переводу
+    function onTransactionClick(id) {
+      activeTxId = id;
+      if (uploadedFiles[id]) {
+        // Если файл уже был прикреплен — открываем его
+        window.open(uploadedFiles[id], '_blank');
+      } else {
+        // Иначе открываем окно выбора файла
+        document.getElementById('file-picker').click();
+      }
+    }
+
+    // Прикрепление файла к выбранному переводу
+    function fileSelected(event) {
+      const file = event.target.files[0];
+      if (file && activeTxId) {
+        const fileUrl = URL.createObjectURL(file);
+        uploadedFiles[activeTxId] = fileUrl;
+        window.open(fileUrl, '_blank');
+      }
+      event.target.value = '';
+    }
+  </script>
+</body>
+</html>
