@@ -1,0 +1,8 @@
+{
+  "name": "Kaspi App",
+  "short_name": "Kaspi",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff"
+}
